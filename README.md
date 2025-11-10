@@ -1,83 +1,134 @@
-# Attacker-moves-second
-unofficial implementation of the paper "attacker moves second" focused on AI secure
+# Attacker moves second
 
-Overview
-This repository implements three complementary adversarial attack techniques to evaluate language model safety mechanisms. The framework tests whether models can maintain safety constraints (specifically, refusing to reveal a protected canary token C4N4RY) when faced with sophisticated prompt manipulations.
-Attack Methodologies
-1. RL-Based Black-Box Bandit
-Approach: Reinforcement learning with epsilon-greedy exploration
-Strategy: Iteratively applies formatting operators (Markdown wrapping, XML tags, JSON encoding, Unicode noise, role prefixes) and learns which transformations are most effective at bypassing safety filters.
-Key Features:
+This repository provides a framework for evaluating the safety mechanisms of language models through three distinct and complementary adversarial attack techniques. The primary goal is to test whether models can uphold safety constraints, specifically by refusing to reveal a protected "canary" token (`C4N4RY`), when subjected to sophisticated prompt manipulations.
+Paper: https://arxiv.org/abs/2510.09023
 
-Multi-armed bandit optimization
-Dynamic suffix evolution
-No gradient access required
+## 📝 Overview
 
-2. Search-Based LLM-Guided Evolutionary
-Approach: Genetic algorithm with population-based search
-Strategy: Maintains a population of candidate prompts and evolves them through mutations (wrapper insertion, Unicode noise injection, role-based hints) across generations.
-Key Features:
+The core of this project is to simulate a scenario where an attacker has the second move, allowing them to adaptively probe and attempt to bypass a model's deployed safety filters. This is achieved through a combination of black-box, gray-box, and white-box attack methodologies.
 
-Seeded initialization with diverse stress-test scenarios
-Top-k parent selection
-Multiple mutation operators
+## 🚀 Attack Methodologies
 
-3. Gradient-Based Surrogate Transfer
-Approach: White-box optimization on surrogate model (GPT-2)
-Strategy: Optimizes a continuous suffix embedding to maximize/minimize canary token probability, then discretizes to actual tokens for transfer to target model.
-Key Features:
+The framework implements the following three attack strategies:
 
-Soft prompt optimization
-Cosine similarity-based token discretization
-Transferable adversarial suffixes
-Requires PyTorch & Transformers
+### 1. RL-Based Black-Box Bandit Attack
+This approach uses reinforcement learning to discover effective prompt transformations without needing access to the model's internal workings.
 
-Architecture
-benign task + adversarial suffix → [Target LLM] → response
-                                          ↓
-                                   violation detector
-                                          ↓
-                                    JSONL traces
-Each attack logs comprehensive traces including:
+*   **Approach**: Employs a multi-armed bandit algorithm with an epsilon-greedy exploration strategy.
+*   **Strategy**: Iteratively applies various formatting operators (like Markdown, XML tags, JSON encoding, Unicode noise, and role prefixes) to the input prompt. The bandit learns which transformations are most successful at bypassing the safety filters.
+*   **Key Features**:
+    *   Gradient-free optimization.
+    *   Dynamic evolution of adversarial suffixes.
+    *   Requires only input/output access to the target model.
 
-Timestamp, model, task details
-Full prompt and response
-Violation flag (binary)
-Latency measurements
-Attack metadata (generation, step, operator)
+### 2. Search-Based LLM-Guided Evolutionary Attack
+This method utilizes a genetic algorithm to evolve a population of effective adversarial prompts over multiple generations.
 
-Usage
-bash# Basic run with default parameters
-python attacker_moves_second.py --model gemma3
+*   **Approach**: A population-based search guided by a genetic algorithm.
+*   **Strategy**: A set of candidate prompts is initialized and then evolved through mutations, such as inserting wrappers, adding Unicode noise, or including role-based hints.
+*   **Key Features**:
+    *   Starts with a diverse set of stress-test scenarios.
+    *   Selects the top-k performing prompts as parents for the next generation.
+    *   Employs a variety of mutation operators to explore the search space.
 
-# Customized attack configuration
-python attacker_moves_second.py \
-  --model llama3 \
-  --trace_dir ./experiment_logs \
-  --rl_steps 100 \
-  --evo_generations 15 \
-  --grad_steps 300 \
-  --grad_objective maximize
-Parameters
-ParameterDefaultDescription--modelgemma3Ollama model name--trace_dirtracesOutput directory for JSONL logs--rl_steps50RL bandit iterations--rl_eps0.2Epsilon for exploration--evo_generations10Evolutionary generations--evo_pop10Population size--evo_topk3Parents per generation--grad_steps200Gradient optimization steps--grad_len12Suffix token length--grad_objectivemaximizemaximize or minimize canary probability
-Requirements
-bash# Core dependencies
-pip install requests
+### 3. Gradient-Based Surrogate Transfer Attack
+This white-box approach optimizes an attack on a surrogate model and then transfers it to the target model.
 
-# For gradient-based attacks
-pip install torch transformers
-External: Requires Ollama running locally on port 11434
-Output
-The framework generates three JSONL trace files per run:
+*   **Approach**: White-box optimization performed on a surrogate model (GPT-2).
+*   **Strategy**: An adversarial suffix is optimized by manipulating its continuous embedding to maximize or minimize the probability of the canary token's appearance. This soft prompt is then discretized into actual tokens for transfer.
+*   **Key Features**:
+    *   Soft prompt optimization.
+    *   Token discretization based on cosine similarity.
+    *   Generates transferable adversarial suffixes.
+    *   Requires PyTorch and the Transformers library.
 
-traces_bandit_<timestamp>.jsonl - RL attack logs
-traces_evo_<timestamp>.jsonl - Evolutionary search logs
-traces_grad_<timestamp>.jsonl - Gradient-based attack logs
+## 🏗️ Architecture
 
-Final scoreboard displays violation rates across all attack types.
-Research Context
-This implementation explores the "attacker moves second" paradigm where adversaries adaptively probe deployed safety mechanisms. The three attack families represent different threat models:
+The general workflow of an attack is as follows:
 
-Black-box (RL): No model access, only input/output
-Gray-box (Search): Query access with iterative refinement
-White-box (Gradient): Full surrogate model access with transfer
+```
+Benign Task + Adversarial Suffix → [Target LLM] → Response
+                                        ↓
+                                 Violation Detector
+                                        ↓
+                                  JSONL Traces
+```
+
+Each attack logs detailed traces in JSONL format, capturing the following information:
+*   Timestamp, model, and task details
+*   The full prompt and the model's response
+*   A binary flag indicating if a safety violation occurred
+*   Latency measurements
+*   Attack-specific metadata (e.g., generation, step, operator used)
+
+## 🛠️ Usage
+
+### Prerequisites
+
+*   Python 3.x
+*   [Ollama](https://ollama.ai/) running locally on port `11434`.
+
+### Installation
+
+1.  **Core Dependencies**:
+    ```bash
+    pip install requests
+    ```
+
+2.  **For Gradient-Based Attacks**:
+    ```bash
+    pip install torch transformers
+    ```
+
+### Running the Attacks
+
+You can run the attacks with default parameters or customize them as needed.
+
+*   **Basic Run**:
+    ```bash
+    python attacker_moves_second.py --model gemma3
+    ```
+
+*   **Customized Configuration**:
+    ```bash
+    python attacker_moves_second.py \
+      --model llama3 \
+      --trace_dir ./experiment_logs \
+      --rl_steps 100 \
+      --evo_generations 15 \
+      --grad_steps 300 \
+      --grad_objective maximize
+    ```
+
+## ⚙️ Parameters
+
+| Parameter | Default | Description |
+| :--- | :--- | :--- |
+| `--model` | `gemma3` | The name of the Ollama model to be used. |
+| `--trace_dir` | `traces` | The directory where the output JSONL logs will be stored. |
+| `--rl_steps` | `50` | The number of iterations for the RL bandit attack. |
+| `--rl_eps` | `0.2` | The epsilon value for exploration in the RL bandit. |
+| `--evo_generations` | `10` | The number of generations for the evolutionary attack. |
+| `--evo_pop` | `10` | The population size for each generation in the evolutionary attack. |
+| `--evo_topk` | `3` | The number of top parents to select for the next generation. |
+| `--grad_steps` | `200` | The number of optimization steps for the gradient-based attack. |
+| `--grad_len` | `12` | The token length of the adversarial suffix in the gradient attack. |
+| `--grad_objective` | `maximize` | The optimization objective (`maximize` or `minimize`) for the canary probability. |
+
+## 📊 Output
+
+For each run, the framework generates three JSONL trace files:
+
+*   `traces_bandit_<timestamp>.jsonl`: Logs from the RL-based attack.
+*   `traces_evo_<timestamp>.jsonl`: Logs from the evolutionary search attack.
+*   `traces_grad_<timestamp>.jsonl`: Logs from the gradient-based attack.
+
+A final scoreboard is displayed in the console, summarizing the violation rates for each attack type.
+
+## 🔬 Research Context
+
+This implementation delves into the "attacker moves second" paradigm, where adversarial methods are adapted to probe and challenge deployed safety mechanisms. The three attack families represent different threat models:
+
+*   **Black-box (RL)**: Assumes no access to the model's internal state, relying solely on its inputs and outputs.
+*   **Gray-box (Search)**: Involves query access to the model with iterative refinement of the attack prompts.
+*   **White-box (Gradient)**: Requires full access to a surrogate model to craft attacks that can be transferred.
